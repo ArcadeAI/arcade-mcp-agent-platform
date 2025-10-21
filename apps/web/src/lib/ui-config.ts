@@ -100,8 +100,8 @@ function configSchemaToToolsConfig(
       continue;
     }
 
-    if (!process.env.NEXT_PUBLIC_MCP_SERVER_URL) {
-      toast.error("Can not configure MCP tool without MCP server URL", {
+    if (!process.env.ARCADE_MCP_GATEWAY_URL) {
+      toast.error("Can not configure MCP tool without MCP Gateway URL", {
         richColors: true,
       });
       continue;
@@ -111,7 +111,7 @@ function configSchemaToToolsConfig(
       label: key,
       type: uiConfig.type,
       default: {
-        url: process.env.NEXT_PUBLIC_MCP_SERVER_URL,
+        url: process.env.ARCADE_MCP_GATEWAY_URL,
         tools: [],
         auth_required: process.env.NEXT_PUBLIC_MCP_AUTH_REQUIRED === "true",
         ...(uiConfig.default ?? {}),

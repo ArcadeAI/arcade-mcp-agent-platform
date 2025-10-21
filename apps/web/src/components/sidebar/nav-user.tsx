@@ -25,14 +25,14 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useAuthContext } from "@/providers/Auth";
+import { useSessionContext } from "@/providers/Session";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useConfigStore } from "@/features/chat/hooks/use-config-store";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { user: authUser, signOut, isAuthenticated } = useAuthContext();
+  const { user: authUser, signOut, isAuthenticated } = useSessionContext();
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { resetStore } = useConfigStore();
@@ -67,17 +67,13 @@ export function NavUser() {
         return;
       }
 
-      router.push("/signin");
+      toast.success("Signed out successfully", { richColors: true });
     } catch (err) {
       console.error("Error during sign out:", err);
       toast.error("Error signing out", { richColors: true });
     } finally {
       setIsSigningOut(false);
     }
-  };
-
-  const handleSignIn = () => {
-    router.push("/signin");
   };
 
   const handleClearLocalData = () => {
@@ -155,7 +151,7 @@ export function NavUser() {
               Settings
             </DropdownMenuItem>
 
-            {isAuthenticated ? (
+            {isAuthenticated && (
               <DropdownMenuItem
                 onClick={handleSignOut}
                 disabled={isSigningOut}
@@ -171,11 +167,6 @@ export function NavUser() {
                     Sign out
                   </>
                 )}
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={handleSignIn}>
-                <User className="mr-2 h-4 w-4" />
-                Sign in
               </DropdownMenuItem>
             )}
             {!isProdEnv && (

@@ -2,26 +2,17 @@ import { createClient } from "@/lib/client";
 import { Agent } from "@/types/agent";
 import { Assistant } from "@langchain/langgraph-sdk";
 import { toast } from "sonner";
-import { useAuthContext } from "@/providers/Auth";
 import { useCallback } from "react";
 import { isSystemCreatedDefaultAssistant } from "@/lib/agent-utils";
 
 export function useAgents() {
-  const { session } = useAuthContext();
-
   const getAgent = useCallback(
     async (
       agentId: string,
       deploymentId: string,
     ): Promise<Agent | undefined> => {
-      if (!session?.accessToken) {
-        toast.error("No access token found", {
-          richColors: true,
-        });
-        return;
-      }
       try {
-        const client = createClient(deploymentId, session.accessToken);
+        const client = createClient(deploymentId);
         const agent = await client.assistants.get(agentId);
         // Never expose the system created default assistants to the user
         if (isSystemCreatedDefaultAssistant(agent)) {
@@ -34,19 +25,13 @@ export function useAgents() {
         return undefined;
       }
     },
-    [session?.accessToken],
+    [],
   );
 
   const getAgentConfigSchema = useCallback(
     async (agentId: string, deploymentId: string) => {
-      if (!session?.accessToken) {
-        toast.error("No access token found", {
-          richColors: true,
-        });
-        return;
-      }
       try {
-        const client = createClient(deploymentId, session.accessToken);
+        const client = createClient(deploymentId);
         const schemas = await client.assistants.getSchemas(agentId);
 
         return schemas.config_schema ?? undefined;
@@ -69,7 +54,7 @@ export function useAgents() {
         });
       }
     },
-    [session?.accessToken],
+    [],
   );
 
   const createAgent = useCallback(
@@ -82,14 +67,8 @@ export function useAgents() {
         config: Record<string, any>;
       },
     ): Promise<Assistant | undefined> => {
-      if (!session?.accessToken) {
-        toast.error("No access token found", {
-          richColors: true,
-        });
-        return;
-      }
       try {
-        const client = createClient(deploymentId, session.accessToken);
+        const client = createClient(deploymentId);
         const agent = await client.assistants.create({
           graphId,
           metadata: {
@@ -109,7 +88,7 @@ export function useAgents() {
         return undefined;
       }
     },
-    [session?.accessToken],
+    [],
   );
 
   const updateAgent = useCallback(
@@ -122,14 +101,8 @@ export function useAgents() {
         config?: Record<string, any>;
       },
     ): Promise<Assistant | undefined> => {
-      if (!session?.accessToken) {
-        toast.error("No access token found", {
-          richColors: true,
-        });
-        return;
-      }
       try {
-        const client = createClient(deploymentId, session.accessToken);
+        const client = createClient(deploymentId);
         const agent = await client.assistants.update(agentId, {
           metadata: {
             ...(args.description && { description: args.description }),
@@ -144,19 +117,13 @@ export function useAgents() {
         return undefined;
       }
     },
-    [session?.accessToken],
+    [],
   );
 
   const deleteAgent = useCallback(
     async (deploymentId: string, agentId: string): Promise<boolean> => {
-      if (!session?.accessToken) {
-        toast.error("No access token found", {
-          richColors: true,
-        });
-        return false;
-      }
       try {
-        const client = createClient(deploymentId, session.accessToken);
+        const client = createClient(deploymentId);
         await client.assistants.delete(agentId);
         return true;
       } catch (e) {
@@ -165,7 +132,7 @@ export function useAgents() {
         return false;
       }
     },
-    [session?.accessToken],
+    [],
   );
 
   return {

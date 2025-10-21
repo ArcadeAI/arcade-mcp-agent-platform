@@ -4,7 +4,8 @@ import { Inter } from "next/font/google";
 import React from "react";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { SidebarLayout } from "@/components/sidebar";
-import { AuthProvider } from "@/providers/Auth";
+import { SessionProvider } from "@/providers/Session";
+import { MCPProvider } from "@/providers/MCP";
 import { DOCS_LINK } from "@/constants";
 
 const inter = Inter({
@@ -50,9 +51,11 @@ export default function RootLayout({
           </div>
         )}
         <NuqsAdapter>
-          <AuthProvider>
-            <SidebarLayout>{children}</SidebarLayout>
-          </AuthProvider>
+          <SessionProvider>
+            <MCPProvider>
+              <SidebarLayout>{children}</SidebarLayout>
+            </MCPProvider>
+          </SessionProvider>
         </NuqsAdapter>
       </body>
     </html>

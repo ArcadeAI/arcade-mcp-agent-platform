@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { SupabaseAuthProvider } from "@/lib/auth/supabase";
+import { MockAuthProvider } from "@/lib/auth/mock-provider";
 import {
   AuthProvider as CustomAuthProvider,
   Session,
@@ -10,7 +10,7 @@ import {
   AuthError,
 } from "@/lib/auth/types";
 
-interface AuthContextProps {
+interface SessionContextProps {
   session: Session | null;
   user: User | null;
   isLoading: boolean;
@@ -39,38 +39,31 @@ interface AuthContextProps {
   }>;
 }
 
-// Create default authentication provider (Supabase in this case)
-const authProvider = new SupabaseAuthProvider({
-  redirectUrl:
-    typeof window !== "undefined" ? window.location.origin : undefined,
-});
+const mockProvider = new MockAuthProvider();
 
-// Create auth context
-const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+const SessionContext = createContext<SessionContextProps | undefined>(
+  undefined,
+);
 
-export function AuthProvider({
+export function SessionProvider({
   children,
   customAuthProvider,
 }: {
   children: React.ReactNode;
   customAuthProvider?: CustomAuthProvider;
 }) {
-  // Use the provided auth provider or default to Supabase
-  const provider = customAuthProvider || authProvider;
+  const provider = customAuthProvider || mockProvider;
 
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load initial session on mount
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Get the current session
         const currentSession = await provider.getSession();
         setSession(currentSession);
 
-        // If we have a session, get the user
         if (currentSession?.user) {
           setUser(currentSession.user);
         }
@@ -84,7 +77,6 @@ export function AuthProvider({
     initializeAuth();
   }, [provider]);
 
-  // Set up auth state change listener
   useEffect(() => {
     const { unsubscribe } = provider.onAuthStateChange((newSession) => {
       setSession(newSession);
@@ -110,15 +102,18 @@ export function AuthProvider({
     updateUser: provider.updateUser.bind(provider),
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+  );
 }
 
-export function useAuthContext() {
-  const context = useContext(AuthContext);
+export function useSessionContext() {
+  const context = useContext(SessionContext);
 
   if (context === undefined) {
-    throw new Error("useAuthContext must be used within an AuthProvider");
+    throw new Error("useSessionContext must be used within a SessionProvider");
   }
 
   return context;
 }
+

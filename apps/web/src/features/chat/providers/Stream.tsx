@@ -22,7 +22,6 @@ import { useAgentsContext } from "@/providers/Agents";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { isUserSpecifiedDefaultAgent } from "@/lib/agent-utils";
-import { useAuthContext } from "@/providers/Auth";
 import { getDeployments } from "@/lib/environment/deployments";
 import { useHasApiKeys } from "@/hooks/use-api-keys";
 import { checkApiKeysWarning } from "@/lib/agent-utils";
@@ -47,34 +46,23 @@ const StreamSession = ({
   children,
   agentId,
   deploymentId,
-  accessToken,
-  useProxyRoute,
 }: {
   children: ReactNode;
   agentId: string;
   deploymentId: string;
-  accessToken?: string;
-  useProxyRoute?: boolean;
 }) => {
-  if (!useProxyRoute && !accessToken) {
-    toast.error("Access token must be provided if not using proxy route");
-  }
-
   const deployment = getDeployments().find((d) => d.id === deploymentId);
   if (!deployment) {
     throw new Error(`Deployment ${deploymentId} not found`);
   }
 
-  let deploymentUrl = deployment.deploymentUrl;
-  if (useProxyRoute) {
-    const baseApiUrl = process.env.NEXT_PUBLIC_BASE_API_URL;
-    if (!baseApiUrl) {
-      throw new Error(
-        "Failed to create client: Base API URL not configured. Please set NEXT_PUBLIC_BASE_API_URL",
-      );
-    }
-    deploymentUrl = `${baseApiUrl}/langgraph/proxy/${deploymentId}`;
+  const baseApiUrl = process.env.NEXT_PUBLIC_BASE_API_URL;
+  if (!baseApiUrl) {
+    throw new Error(
+      "Failed to create client: Base API URL not configured. Please set NEXT_PUBLIC_BASE_API_URL",
+    );
   }
+  const deploymentUrl = `${baseApiUrl}/langgraph/proxy/${deploymentId}`;
 
   const [threadId, setThreadId] = useQueryState("threadId");
   const streamValue = useTypedStream({
@@ -91,14 +79,7 @@ const StreamSession = ({
       setThreadId(id);
     },
     defaultHeaders: {
-      ...(!useProxyRoute
-        ? {
-            Authorization: `Bearer ${accessToken}`,
-            "x-supabase-access-token": accessToken,
-          }
-        : {
-            "x-auth-scheme": "langsmith",
-          }),
+      "x-auth-scheme": "langsmith",
     },
   });
 
@@ -117,7 +98,6 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   const [deploymentId, setDeploymentId] = useQueryState("deploymentId");
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
-  const { session } = useAuthContext();
   const hasApiKeys = useHasApiKeys();
   const warningShownRef = useRef<string>("");
 
@@ -194,19 +174,8 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     );
   }
 
-  const useProxyRoute = process.env.NEXT_PUBLIC_USE_LANGSMITH_AUTH === "true";
-  if (!useProxyRoute && !session?.accessToken) {
-    toast.error("Access token must be provided if not using proxy route");
-    return null;
-  }
-
   return (
-    <StreamSession
-      agentId={agentId}
-      deploymentId={deploymentId}
-      accessToken={session?.accessToken ?? undefined}
-      useProxyRoute={useProxyRoute}
-    >
+    <StreamSession agentId={agentId} deploymentId={deploymentId}>
       {children}
     </StreamSession>
   );

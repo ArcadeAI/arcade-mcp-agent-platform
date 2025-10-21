@@ -3,32 +3,20 @@ import { Client } from "@langchain/langgraph-sdk";
 import { getDeployments } from "@/lib/environment/deployments";
 
 /**
- * Creates a client for a specific deployment, using either LangSmith auth or user auth
+ * Creates a client for a specific deployment using LangSmith auth
  */
-function createServerClient(deploymentId: string, accessToken?: string) {
+function createServerClient(deploymentId: string) {
   const deployment = getDeployments().find((d) => d.id === deploymentId);
   if (!deployment) {
     throw new Error(`Deployment ${deploymentId} not found`);
   }
 
-  if (!accessToken) {
-    // Use LangSmith auth
-    const client = new Client({
-      apiUrl: deployment.deploymentUrl,
-      apiKey: process.env.LANGSMITH_API_KEY,
-      defaultHeaders: {
-        "x-auth-scheme": "langsmith",
-      },
-    });
-    return client;
-  }
-
-  // Use user auth
+  // Always use LangSmith auth in proxy mode
   const client = new Client({
     apiUrl: deployment.deploymentUrl,
+    apiKey: process.env.LANGSMITH_API_KEY,
     defaultHeaders: {
-      Authorization: `Bearer ${accessToken}`,
-      "x-supabase-access-token": accessToken,
+      "x-auth-scheme": "langsmith",
     },
   });
   return client;
@@ -37,27 +25,22 @@ function createServerClient(deploymentId: string, accessToken?: string) {
 /**
  * Gets or creates default assistants for a deployment
  */
-async function getOrCreateDefaultAssistants(
-  deploymentId: string,
-  accessToken?: string,
-) {
+async function getOrCreateDefaultAssistants(deploymentId: string) {
   const deployment = getDeployments().find((d) => d.id === deploymentId);
   if (!deployment) {
     throw new Error(`Deployment ${deploymentId} not found`);
   }
 
-  // Do NOT pass in an access token here. We want to use LangSmith auth.
-  const lsAuthClient = createServerClient(deploymentId);
-  const userAuthClient = createServerClient(deploymentId, accessToken);
+  const client = createServerClient(deploymentId);
 
   const [systemDefaultAssistants, userDefaultAssistants] = await Promise.all([
-    lsAuthClient.assistants.search({
+    client.assistants.search({
       limit: 100,
       metadata: {
         created_by: "system",
       },
     }),
-    userAuthClient.assistants.search({
+    client.assistants.search({
       limit: 100,
       metadata: {
         _x_oap_is_default: true,
@@ -80,13 +63,13 @@ async function getOrCreateDefaultAssistants(
       !userDefaultAssistants.some((a) => a.graph_id === assistant.graph_id),
   );
 
-  // Create a new client, passing in the access token to use user scoped auth.
+  // Create default assistants for missing graphs
   const newUserDefaultAssistantsPromise = missingDefaultAssistants.map(
     async (assistant) => {
       const isDefaultDeploymentAndGraph =
         deployment.isDefault &&
         deployment.defaultGraphId === assistant.graph_id;
-      return await userAuthClient.assistants.create({
+      return await client.assistants.create({
         graphId: assistant.graph_id,
         name: `${isDefaultDeploymentAndGraph ? "Default" : "Primary"} Assistant`,
         metadata: {
@@ -120,9 +103,6 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const deploymentId = url.searchParams.get("deploymentId");
-    const accessToken = req.headers
-      .get("Authorization")
-      ?.replace("Bearer ", "");
 
     if (!deploymentId) {
       return new Response(
@@ -134,10 +114,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const defaultAssistants = await getOrCreateDefaultAssistants(
-      deploymentId,
-      accessToken || undefined,
-    );
+    const defaultAssistants = await getOrCreateDefaultAssistants(deploymentId);
 
     return new Response(JSON.stringify(defaultAssistants), {
       status: 200,

@@ -47,3 +47,11 @@ credentials.json
 .langgraph_api
 
 **/.claude/settings.local.json
+
+# Cursor IDE
+.cursor/
+
+# Phase documentation (internal only)
+PHASE1-COMPLETE.md
+PHASE2-COMPLETE.md
+PHASE3-COMPLETE.md
