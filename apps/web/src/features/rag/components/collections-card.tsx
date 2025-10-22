@@ -44,8 +44,9 @@ export function CollectionsCard({
     const loadingToast = toast.loading("Creating collection", {
       richColors: true,
     });
-    const success = await createCollection(name, {
-      description,
+    const success = await createCollection({
+      name,
+      metadata: { description },
     });
     toast.dismiss(loadingToast);
     if (success) {
@@ -91,7 +92,7 @@ export function CollectionsCard({
     const loadingToast = toast.loading("Updating collection", {
       richColors: true,
     });
-    await updateCollection(id, name, metadata);
+    await updateCollection(id, { name, metadata });
     toast.dismiss(loadingToast);
     toast.success("Collection updated successfully", { richColors: true });
   };

@@ -18,12 +18,12 @@ This is a customized implementation of [LangChain's Open Agent Platform](https:/
 
 ### What Makes This Special
 
-- 🔐 **Production-Ready Auth**: Supabase removed, ready for Okta SSO integration
+- 🔐 **Multi-Provider SSO**: Okta, Microsoft Entra ID, and PingID - choose your identity provider
 - 🛠️ **100+ Tools via Arcade**: GitHub, Slack, Gmail, Calendar, Linear, and more
-- 🔒 **Secure by Design**: Server-side API key management, no client exposure
+- 🔒 **Custom Verifier**: Production-ready OAuth security with user verification
 - ⚡ **Proxy Architecture**: Zero client-side credentials, full request control
-- 🎯 **Per-User Authorization**: Arcade handles OAuth flows for each user
-- 🏢 **Enterprise SSO Ready**: Built for Okta OIDC integration (Phase 2)
+- 🎯 **True Multi-User**: Per-user tool authorization with session-based identity
+- 🏢 **Enterprise Ready**: Complete SSO integration with phishing and session hijacking protection
 
 ## Key Features
 
@@ -38,10 +38,12 @@ Access Arcade's entire tool ecosystem:
 - **And 100+ more...**
 
 ### 🔐 Secure Tool Authorization
-- Server-side API key storage (never exposed to browser)
-- Per-user tool authorization through Arcade OAuth
-- Custom headers for user identification
-- Production-ready security architecture
+- **Custom Verifier Endpoint**: Validates user identity during OAuth flows
+- **Server-side API keys**: Never exposed to browser
+- **Per-user OAuth**: Each user authorizes tools with their own accounts
+- **Phishing/Session Hijacking Protection**: Ensures session user matches authorizing user
+- **Multi-user Isolation**: Users cannot access each other's tool authorizations
+- **Production-ready**: Implements [Arcade's security requirements](https://docs.arcade.dev/en/home/auth/secure-auth-production)
 
 ### 💬 Advanced Chat Interface
 - Real-time streaming responses
@@ -58,63 +60,114 @@ Access Arcade's entire tool ecosystem:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Browser (Client)                            │
-│  ┌────────────┐    ┌──────────────┐    ┌────────────────────────┐   │
-│  │  Chat UI   │    │  Tools UI    │    │  Agent Management      │   │
-│  └──────┬─────┘    └──────┬───────┘    └──────────┬─────────────┘   │
-│         │                 │                       │                 │
-│         │                 │                       │                 │
-└─────────┼─────────────────┼───────────────────────┼─────────────────┘
-          │                 │                       │
-          │                 │                       │
-          ▼                 ▼                       ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                    Next.js Backend (Server)                        │
-│                                                                    │
-│  ┌──────────────────────┐         ┌─────────────────────────────┐  │
-│  │  /api/langgraph/     │         │  /api/oap_mcp               │  │
-│  │  proxy/{id}          │         │                             │  │
-│  │                      │         │  Injects:                   │  │
-│  │  Injects:            │         │  • Authorization: Bearer    │  │
-│  │  • LANGSMITH_API_KEY │         │    ${ARCADE_API_KEY}        │  │
-│  │  • x-auth-scheme     │         │  • Arcade-User-ID:          │  │
-│  └──────────┬───────────┘         │    ${ARCADE_USER_ID}        │  │
-│             │                     └─────────────┬───────────────┘  │
-└─────────────┼───────────────────────────────────┼──────────────────┘
-              │                                   │
-              │                                   │
-              ▼                                   ▼
-┌──────────────────────────┐      ┌──────────────────────────────────┐
-│   LangGraph Deployment   │      │      Arcade MCP Gateway          │
-│                          │      │                                  │
-│  • Local: localhost:2024 │      │  • Handles OAuth flows           │
-│  • Cloud: LangSmith      │      │  • Manages tool authorization    │
-│  • Custom deployment     │      │  • Executes tools securely       │
-│                          │      │  • Returns results               │
-│  Graph: chat_agent       │      │                                  │
-│  Config: MCP tools, etc. │      │  Tools: GitHub, Slack, Gmail,    │
-│                          │      │         Linear, Notion, etc.     │
-└──────────────────────────┘      └──────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Browser (Client)                             │
+│  ┌────────────┐    ┌──────────────┐    ┌──────────────────────────┐  │
+│  │  Chat UI   │    │  Tools UI    │    │  Agent Management        │  │
+│  └──────┬─────┘    └──────┬───────┘    └──────────┬───────────────┘  │
+│         │                 │                       │                  │
+│         └─────────────────┴───────────────────────┘                  │
+│                           │                                          │
+│                 User authenticated via:                              │
+│                 Okta / Entra ID / PingID                             │
+│                            │                                         │
+└────────────────────────────┼─────────────────────────────────────────┘
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│              Next.js Backend (Server) + NextAuth                     │
+│                                                                      │
+│  ┌─────────────────────┐  ┌──────────────────┐  ┌────────────────┐   │
+│  │ /api/auth/          │  │ Session Mgmt     │  │ /api/arcade/   │  │
+│  │ [..nextauth]        │  │ (JWT Cookies)    │  │ verify         │  │
+│  │                     │  │                  │  │                │  │
+│  │ • Okta OIDC        │  │ Gets user email  │  │ Custom         │  │
+│  │ • Entra ID OIDC    │  │ from session     │  │ Verifier       │  │
+│  │ • PingID OIDC      │  │                  │  │ (Phase 3)      │  │
+│  └─────────────────────┘  └────────┬─────────┘  └────────┬───────┘  │
+│                                    │                     │          │
+│  ┌─────────────────────┐  ┌────────▼──────────┐          │          │
+│  │ /api/langgraph/     │  │ /api/oap_mcp      │◄─────────┘          │
+│  │ proxy/{id}          │  │                   │  (on OAuth redirect) │
+│  │                     │  │ Gets session:     │                     │
+│  │ Injects:            │  │ user.email        │                     │
+│  │ • LANGSMITH_API_KEY │  │                   │                     │
+│  │ • x-auth-scheme     │  │ Injects:          │                     │
+│  └──────────┬──────────┘  │ • Authorization:  │                     │
+│             │             │   Bearer ${KEY}   │                     │
+│             │             │ • Arcade-User-ID: │                     │
+│             │             │   ${session.email}│                     │
+│             │             └─────────┬─────────┘                     │
+└─────────────┼───────────────────────┼───────────────────────────────┘
+              │                       │
+              ▼                       ▼
+┌───────────────────────┐   ┌─────────────────────────────────────────┐
+│  LangGraph Deployment │   │      Arcade MCP Gateway                 │
+│                       │   │                                         │
+│  • localhost:2024     │   │  1. Receives tool call with             │
+│  • LangSmith Cloud    │   │     Arcade-User-ID: user@company.com    │
+│                       │   │  2. User needs GitHub OAuth?            │
+│  Executes agents with │   │  3. Redirects to GitHub                 │
+│  configured MCP tools │   │  4. User authorizes                     │
+│                       │   │  5. Redirects to /api/arcade/verify     │
+│                       │   │  6. Verifier confirms user identity     │
+│                       │   │  7. Tool authorized for this user       │
+│                       │   │  8. Executes with user's OAuth token    │
+└───────────────────────┘   └─────────────────────────────────────────┘
 ```
 
 ### Data Flow
 
-#### MCP Tool Execution
+#### User Authentication & Session Flow (Phase 2)
 ```
-1. User → Agent: "Check my GitHub repos"
-2. Agent → LangGraph: Invokes tool
-3. LangGraph → OAP Proxy: MCP tool call request
-4. OAP Proxy → Arcade: Request + Auth headers
-5. Arcade → GitHub: OAuth-authenticated API call
-6. GitHub → Arcade → OAP → Agent → User: Results
+1. User visits OAP → Unauthenticated
+2. Middleware checks session → None found
+3. Redirect to SSO login page (Okta/Entra/Ping)
+4. User authenticates with corporate SSO
+5. SSO redirects to /api/auth/callback/{provider}
+6. NextAuth validates OAuth code & creates JWT session
+7. Session cookie stored (httpOnly, secure)
+8. User redirected to OAP → Authenticated
+9. All subsequent requests include session cookie
 ```
 
-#### Authentication Headers
-```bash
-# Sent to Arcade on every MCP request
-Authorization: Bearer arc_projXXXXXXXXXX
-Arcade-User-ID: user@company.com
+#### MCP Tool Execution with Multi-User Auth (Phases 2 & 3)
+```
+1. User A (alice@company.com) → Agent: "Check my GitHub repos"
+2. Agent → LangGraph: Invokes GitHub tool
+3. LangGraph → OAP /api/oap_mcp
+4. OAP extracts session: alice@company.com
+5. OAP → Arcade with headers:
+   • Authorization: Bearer ${ARCADE_API_KEY}
+   • Arcade-User-ID: alice@company.com
+6. Arcade checks: Does alice@company.com have GitHub OAuth?
+   
+   If NO:
+   7a. Arcade → User's browser: GitHub OAuth page
+   7b. User authorizes with THEIR GitHub account
+   7c. GitHub → Arcade with auth code
+   7d. Arcade → OAP Custom Verifier: /api/arcade/verify?flow_id=xxx
+   7e. Verifier gets session email: alice@company.com
+   7f. Verifier → Arcade: confirmUser(flow_id, alice@company.com)
+   7g. Arcade validates identity match ✓
+   7h. Tool authorized for alice@company.com
+   
+   If YES:
+   7. Use existing OAuth token
+   
+8. Arcade → GitHub API with alice@company.com's token
+9. GitHub returns Alice's repos
+10. Arcade → OAP → Agent → User: Alice sees HER repos
+
+// Meanwhile, User B (bob@company.com) has separate auth
+// Bob's tools use BOB's GitHub account, completely isolated
+```
+
+#### Dynamic Headers (Multi-User)
+```typescript
+// Sent to Arcade on every MCP request - dynamically per user
+Authorization: Bearer arc_proj... // Same for all (project key)
+Arcade-User-ID: alice@company.com  // Different per user from session!
 ```
 
 ## Quick Start
@@ -127,6 +180,7 @@ Arcade-User-ID: user@company.com
 - **Arcade Account**: Sign up at [arcade.dev](https://arcade.dev)
 - **LangSmith Account**: Sign up at [smith.langchain.com](https://smith.langchain.com)
 - **Anthropic API Key**: Get from [console.anthropic.com](https://console.anthropic.com)
+- **SSO Provider** (choose one): Okta, Microsoft Entra ID, or PingID account
 
 ### Step 1: Set Up Arcade MCP Gateway
 
@@ -153,35 +207,70 @@ langgraph dev --port 2024
 
 When the server starts, **note the assistant ID** shown in the output or LangSmith Studio URL.
 
-### Step 3: Configure OAP
+### Step 3: Configure SSO Provider
+
+Choose one (or more) identity providers:
+
+**Option A: Okta**
+```bash
+# In Okta Dashboard, create OIDC Web App
+# Redirect URI: http://localhost:3000/api/auth/callback/okta
+# Copy: Client ID, Client Secret, Issuer
+```
+
+**Option B: Microsoft Entra ID**
+```bash
+# In Azure Portal, create App Registration
+# Redirect URI: http://localhost:3000/api/auth/callback/entra-id
+# Copy: Application ID, Client Secret, Tenant ID
+```
+
+**Option C: PingID**
+```bash
+# In PingOne Console, create OIDC Web App
+# Redirect URI: http://localhost:3000/api/auth/callback/ping
+# Copy: Client ID, Client Secret, Issuer URL
+```
+
+### Step 4: Configure OAP
 
 ```bash
 cd open-agent-platform/apps/web
-
-# Create .env.local from the example
 cp .env.example .env.local
 
-# Edit .env.local and set:
-# - ARCADE_MCP_GATEWAY_URL (from Arcade dashboard)
-# - ARCADE_API_KEY (from Arcade dashboard)
-# - ARCADE_USER_ID (your email)
-# - NEXT_PUBLIC_DEPLOYMENTS id (assistant ID from Step 2)
-# - LANGSMITH_API_KEY (from LangSmith)
+# Generate NextAuth secret
+openssl rand -base64 32
+
+# Edit .env.local with ALL required values:
 ```
 
-**Example `.env.local`:**
+**Complete `.env.local` Example:**
 ```bash
+# Base & NextAuth
 NEXT_PUBLIC_BASE_API_URL=http://localhost:3000/api
-NEXT_PUBLIC_DEPLOYMENTS='[{"id":"ASSISTANT-ID-HERE","deploymentUrl":"http://localhost:2024","isDefault":true,"defaultGraphId":"chat_agent","name":"Local"}]'
+NEXTAUTH_SECRET=<output-from-openssl>
+NEXTAUTH_URL=http://localhost:3000
+
+# SSO Provider (at least one)
+PING_CLIENT_ID=<from-ping>
+PING_CLIENT_SECRET=<from-ping>
+PING_ISSUER=https://auth.pingone.com/{env-id}/as
+
+# LangGraph
+NEXT_PUBLIC_DEPLOYMENTS='[{"id":"<ASSISTANT-ID>","deploymentUrl":"http://localhost:2024","isDefault":true,"defaultGraphId":"chat_agent","name":"Local"}]'
 NEXT_PUBLIC_USE_LANGSMITH_AUTH=true
 LANGSMITH_API_KEY=lsv2_pt_...
+
+# Arcade
 ARCADE_MCP_GATEWAY_URL=https://api.arcade.dev/mcp/your-slug
 ARCADE_API_KEY=arc_proj_...
-ARCADE_USER_ID=you@company.com
 NEXT_PUBLIC_MCP_AUTH_REQUIRED=true
+
+# Optional fallback (only for dev without SSO)
+# ARCADE_USER_ID=dev@example.com
 ```
 
-### Step 4: Run OAP
+### Step 5: Run OAP
 
 ```bash
 # From project root
@@ -191,31 +280,66 @@ yarn dev
 
 Navigate to `http://localhost:3000`
 
-### Step 5: Create Your First Agent
+### Step 6: Authenticate & Create Agent
 
-1. **Browse Tools**: Go to `/tools` → See all Arcade MCP tools available
-2. **Create Agent**: Go to `/agents` → Click "Create Agent"
-3. **Select Graph**: Choose "Chat Agent" from dropdown
-4. **Configure Tools**: Select which tools the agent can access
-5. **Name It**: Give your agent a name and description
-6. **Start Chatting**: Click into your agent and start a conversation!
+1. **Sign In**: Click user menu → Choose your SSO provider → Authenticate
+2. **Browse Tools**: Go to `/tools` → See all 1000+ Arcade MCP tools
+3. **Create Agent**: Go to `/agents` → Click "Create Agent"
+4. **Select Graph**: Choose "Chat Agent" from dropdown
+5. **Configure MCP Tools**: Select which tools the agent can access
+6. **Name & Create**: Give your agent a name and description
+7. **Start Chatting**: Click into your agent and start a conversation!
+
+### Step 7: (Optional) Configure Custom Verifier for Production
+
+For production multi-user OAuth security:
+
+1. Deploy OAP to a public URL or use ngrok
+2. Go to **Arcade Dashboard** → Auth → Settings
+3. Select **"Custom verifier"**
+4. Enter verifier URL: `https://your-domain.com/api/arcade/verify`
+5. Save and test tool authorization flow
+
+See [PHASE3-COMPLETE.md](docs) for detailed verifier setup.
 
 ## Configuration
 
 ### Environment Variables
 
-See `apps/web/.env.example` for the complete template.
+See `apps/web/.env.example` for the complete template with detailed instructions.
 
-#### Essential Variables
+#### Core Variables (Required)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `NEXT_PUBLIC_BASE_API_URL` | API base URL (must include `/api`) | `http://localhost:3000/api` |
-| `ARCADE_MCP_GATEWAY_URL` | Your Arcade MCP gateway endpoint | `https://api.arcade.dev/mcp/yourslug` |
-| `ARCADE_API_KEY` | Arcade project API key (server-side) | `arc_proj_...` |
-| `ARCADE_USER_ID` | User email for tool authorization | `user@company.com` |
-| `NEXT_PUBLIC_DEPLOYMENTS` | LangGraph deployment configuration | See below |
+| `NEXTAUTH_SECRET` | NextAuth JWT signing secret | Generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Application base URL | `http://localhost:3000` |
+
+#### SSO Providers (Configure at least ONE)
+
+| Variable | Provider | Description |
+|----------|----------|-------------|
+| `OKTA_CLIENT_ID`<br>`OKTA_CLIENT_SECRET`<br>`OKTA_ISSUER` | Okta | Okta OIDC application credentials |
+| `ENTRA_CLIENT_ID`<br>`ENTRA_CLIENT_SECRET`<br>`ENTRA_TENANT_ID` | Microsoft | Azure AD/Entra ID app registration |
+| `PING_CLIENT_ID`<br>`PING_CLIENT_SECRET`<br>`PING_ISSUER` | PingID | Ping Identity OIDC application |
+
+#### Arcade MCP (Required)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ARCADE_MCP_GATEWAY_URL` | Your Arcade MCP gateway URL | `https://api.arcade.dev/mcp/yourslug` |
+| `ARCADE_API_KEY` | Arcade project API key (server-side only) | `arc_proj_...` |
+| `ARCADE_USER_ID` | **Optional** fallback for dev without SSO | `dev@example.com` |
+| `NEXT_PUBLIC_MCP_AUTH_REQUIRED` | Enable MCP authentication | `true` |
+
+#### LangGraph (Required)
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `NEXT_PUBLIC_DEPLOYMENTS` | LangGraph deployment config (JSON) | See below |
 | `LANGSMITH_API_KEY` | LangSmith API key for proxy auth | `lsv2_pt_...` |
+| `NEXT_PUBLIC_USE_LANGSMITH_AUTH` | Enable proxy mode | `true` |
 
 #### LangGraph Deployments Configuration
 
@@ -275,40 +399,64 @@ This means each user can have their own GitHub/Slack/etc. authorizations.
 
 ### Authentication Architecture
 
-#### Current State (Phase 1)
+#### Current Implementation (Phase 2)
 
-**Mock Authentication:** The application uses a `MockAuthProvider` for testing:
-- All users appear as "Test User" (`test@example.com`)
-- No actual authentication required
-- Single shared `ARCADE_USER_ID` for all users
-- Suitable for development and testing only
+**NextAuth + Multi-Provider SSO:** Production-ready authentication supporting multiple enterprise identity providers:
+
+**Supported Providers:**
+- **Okta** - Enterprise SSO platform
+- **Microsoft Entra ID** (formerly Azure AD) - Microsoft's identity platform
+- **PingID** - Ping Identity SSO solution
+
+**Development Mode** (`NODE_ENV=development`):
+- Authentication optional - allows testing without SSO
+- Falls back to `ARCADE_USER_ID` from environment
+- Sign in buttons available but not required
+- Fully backward compatible with Phase 1
+
+**Production Mode** (`NODE_ENV=production`):
+- SSO required for access (any configured provider)
+- Users authenticate with their corporate identity provider
+- Per-user Arcade tool authorization
+- Session managed via secure JWT cookies
 
 **Implementation:**
 ```typescript
-// apps/web/src/lib/auth/mock-provider.ts
-export class MockAuthProvider implements AuthProvider {
-  private mockUser: User = {
-    id: "mock-user-id",
-    email: "test@example.com",
-    displayName: "Test User",
-  };
-  // ... always returns this user
-}
+// apps/web/src/lib/auth/auth.ts - Dynamic provider configuration
+const getProviders = () => {
+  const providers = [];
+  
+  // Okta
+  if (process.env.OKTA_CLIENT_ID && process.env.OKTA_ISSUER) {
+    providers.push({ id: "okta", type: "oidc", ... });
+  }
+  
+  // Microsoft Entra ID
+  if (process.env.ENTRA_CLIENT_ID && process.env.ENTRA_TENANT_ID) {
+    providers.push({ id: "entra-id", type: "oidc", ... });
+  }
+  
+  // PingID
+  if (process.env.PING_CLIENT_ID && process.env.PING_ISSUER) {
+    providers.push({ id: "ping", type: "oidc", ... });
+  }
+  
+  return providers;
+};
+
+// apps/web/src/app/api/oap_mcp/proxy-request.ts  
+// Multi-user support - each user's email from their SSO session
+const session = await auth();
+const userEmail = session?.user?.email || ARCADE_USER_ID_FALLBACK;
+headers.set("Arcade-User-ID", userEmail);
 ```
 
-#### Planned (Phase 2)
-
-**NextAuth + Okta SSO:**
-- Real user authentication via Okta OIDC
-- Session management with secure cookies
-- Per-user Arcade identification
-- Dynamic `Arcade-User-ID` from authenticated user's email
-
-```typescript
-// Future implementation
-const session = await getServerSession();
-headers.set("Arcade-User-ID", session.user.email);
-```
+**Benefits:**
+- **Multi-provider flexibility** - Choose your enterprise SSO provider
+- **Per-user tool access** - Each user has their own Arcade OAuth authorizations
+- **Secure** - Email from validated JWT session, not client input
+- **Zero-config defaults** - Only configure the provider(s) you need
+- **Enterprise-ready** - Standard OIDC protocol, works with any OIDC provider
 
 ### LangGraph Proxy Mode
 
@@ -466,24 +614,35 @@ src/components/auth/
 
 **Created:**
 ```
+# Phase 1: Core Infrastructure
 src/lib/auth/mock-provider.ts        # Mock auth for testing
-src/providers/Session.tsx            # Minimal session provider
+src/providers/Session.tsx            # Session provider (now uses NextAuth)
 apps/web/.env.example                # Configuration template
-simple-langgraph-agent/              # Example agent
-PHASE1-COMPLETE.md                   # Implementation notes
+simple-langgraph-agent/              # Example LangGraph agent
+
+# Phase 2: Multi-Provider Authentication
+src/lib/auth/auth.ts                 # NextAuth config with 3 providers
+src/lib/auth/providers.ts            # Provider utilities
+src/app/api/auth/[...nextauth]/      # NextAuth API routes
+
+# Phase 3: Custom Verifier
+src/app/api/arcade/verify/           # Arcade custom verifier endpoint
 ```
 
-**Modified (25+ files):**
+**Modified (30+ files):**
 ```
-apps/web/package.json                # Removed Supabase deps
-src/app/api/oap_mcp/proxy-request.ts # Arcade header injection
-src/hooks/use-mcp.tsx                # Dynamic URL, error handling
+# Core Changes
+apps/web/package.json                # Removed Supabase, added NextAuth + Arcade SDK
+src/app/api/oap_mcp/proxy-request.ts # Dynamic Arcade-User-ID from session
+src/hooks/use-mcp.tsx                # Protocol 2025-06-18 support
 src/lib/client.ts                    # Proxy-only mode
-src/lib/auth/middleware.ts           # Allow all requests
-src/providers/Agents.tsx             # Remove auth dependencies
-src/features/chat/providers/Stream.tsx
-src/components/sidebar/nav-user.tsx
-... and 18 more files
+src/lib/auth/middleware.ts           # NextAuth session validation
+src/components/sidebar/nav-user.tsx  # Multi-provider sign-in UI
+src/providers/Agents.tsx             # Removed session dependencies
+src/providers/Session.tsx            # NextAuth integration
+src/app/(app)/layout.tsx             # NextAuthSessionProvider wrapper
+
+# 25+ more files updated
 ```
 
 ## Troubleshooting
@@ -554,59 +713,90 @@ yarn add @modelcontextprotocol/sdk@latest
 - Mock auth provider for testing
 - Full agent + tool functionality working
 
-### 🚧 Phase 2: In Planning
+### ✅ Phase 2: Complete
 
-**NextAuth + Okta SSO Integration**
-- Install and configure NextAuth.js
-- Implement Okta OIDC provider
-- Replace mock provider with real auth
-- Dynamic `Arcade-User-ID` from session
-- Re-enable RAG functionality
-- Update UI components for real user data
+**NextAuth + Multi-Provider SSO Integration**
+- ✅ NextAuth.js v5 installed and configured
+- ✅ **Three enterprise identity providers:**
+  - Okta OIDC with PKCE
+  - Microsoft Entra ID (Azure AD)
+  - PingID with Ping Identity
+- ✅ Dynamic provider detection (zero-config)
+- ✅ Real authentication with JWT session management
+- ✅ Dynamic `Arcade-User-ID` from authenticated user email
+- ✅ Development mode fallback (backward compatible)
+- ✅ Multi-provider sign-in UI
+- ✅ Production auth enforcement via middleware
 
-### 📋 Phase 3: Future
+### ✅ Phase 3: Complete
 
-**Arcade Custom Verifier Service**
-- Build verification endpoint for Arcade OAuth
-- Deploy as separate service
-- Configure in Arcade dashboard
-- Enable production-grade tool authorization
+**Arcade Custom Verifier**
+- ✅ Custom verifier endpoint at `/api/arcade/verify`
+- ✅ Arcade SDK integration for `confirmUser` API
+- ✅ Session-based user identity validation
+- ✅ Phishing attack prevention
+- ✅ Multi-user OAuth isolation
+- ✅ Production-ready security implementation
+- ✅ Styled success/error pages
+- ✅ Comprehensive error handling
+
+### 📋 Future Enhancements
+
+**RAG Re-implementation**
+- Restore RAG functionality with NextAuth integration
+- Per-user document collections
+- Authenticated vector store access
 
 **Multi-Deployment Support**
-- Support multiple LangGraph deployments
-- Cloud + local deployments simultaneously
-- Deployment switching in UI
+- Multiple LangGraph deployments simultaneously
+- Cloud + local deployment mixing
+- Deployment selection UI
 
-## Security Considerations
+## Security & Production Readiness
 
-### Current Implementation (Development)
+### Production-Ready Features ✅
 
-⚠️ **Not for production use** - No authentication enabled
+**Authentication & Authorization:**
+- ✅ Multi-provider SSO (Okta, Entra ID, PingID)
+- ✅ NextAuth session management with JWT
+- ✅ Arcade Custom Verifier for OAuth security
+- ✅ Per-user tool authorization
+- ✅ Phishing attack prevention
+- ✅ Server-side API key storage
 
-**What's Secure:**
-- ✅ API keys stored server-side only
+**Architecture Security:**
 - ✅ Proxy pattern prevents credential exposure
-- ✅ No tokens sent to browser
-- ✅ Environment variable isolation
+- ✅ No client-side tokens or secrets
+- ✅ Session-based user identification
+- ✅ Multi-user OAuth isolation
+- ✅ HTTPS-ready (configure in production)
 
-**What's NOT Secure:**
-- ❌ No user authentication
-- ❌ Anyone can access the application
-- ❌ All users share same Arcade identity
-- ❌ No session management
+### Deployment Modes
 
-### Production Requirements
+**Development Mode** (`NODE_ENV=development`):
+- Authentication optional
+- Fallback to `ARCADE_USER_ID` env var
+- Great for local testing
+- All features functional
 
-Before deploying to production:
+**Production Mode** (`NODE_ENV=production`):
+- SSO required (configure at least one provider)
+- Per-user authentication and tool access
+- Custom verifier active
+- Session validation enforced
 
-1. ✅ Implement NextAuth with Okta SSO (Phase 2)
-2. ✅ Build Arcade custom verifier (Phase 3)
-3. ✅ Enable per-user tool authorization
-4. ✅ Add rate limiting
-5. ✅ Enable HTTPS/TLS
-6. ✅ Set secure cookie flags
-7. ✅ Configure CORS properly
-8. ✅ Add audit logging
+### Pre-Production Checklist
+
+Before going live:
+
+1. ✅ **Auth**: NextAuth with SSO configured (Phases 2 & 3 complete)
+2. ✅ **Verifier**: Custom verifier implemented and tested
+3. ✅ **Multi-user**: Per-user tool authorization working
+4. ⚠️ **HTTPS/TLS**: Required for production OAuth (configure on hosting)
+5. ⚠️ **Domain**: Real domain needed (ngrok for testing)
+6. ⚠️ **Rate Limiting**: Add if needed for your use case
+7. ⚠️ **Monitoring**: Set up logging/alerting
+8. ⚠️ **Backup**: Configure data persistence strategy
 
 ## Arcade MCP Reference
 
@@ -622,12 +812,31 @@ Before deploying to production:
 
 Full list: [docs.arcade.dev/en/mcp-servers](https://docs.arcade.dev/en/mcp-servers)
 
-### Custom Verifier (Phase 3)
+### Custom Verifier Implementation
 
-For production use, Arcade requires a custom verifier endpoint. This will:
-- Validate user identity during OAuth flows
-- Prevent phishing attacks
-- Ensure secure tool authorization
+The platform includes a production-ready custom verifier for secure multi-user OAuth:
+
+**Endpoint**: `/api/arcade/verify`
+
+**How it Works:**
+1. User initiates tool authorization (e.g., GitHub)
+2. Arcade handles OAuth with external service
+3. After OAuth, Arcade redirects to verifier with `flow_id`
+4. Verifier extracts user email from NextAuth session
+5. Calls `arcade.auth.confirmUser(flow_id, user_email)`
+6. Arcade validates user identity matches the flow
+7. Tool authorization completed securely
+
+**Security Benefits:**
+- ✅ Prevents phishing attacks
+- ✅ Validates session user = OAuth user
+- ✅ Multi-user isolation enforced
+- ✅ Cannot authorize tools for other users
+
+**Configuration:**
+- Development: Use Arcade's default verifier
+- Testing: Configure ngrok URL in Arcade Dashboard
+- Production: Configure production domain in Arcade Dashboard
 
 Documentation: [Arcade Custom Verifier](https://docs.arcade.dev/en/home/auth/secure-auth-production)
 

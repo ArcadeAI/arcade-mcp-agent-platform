@@ -92,9 +92,15 @@ export function useRag(): UseRagReturn {
     return [];
   }, []);
 
-  const createCollection = useCallback(async () => {
-    return undefined;
-  }, []);
+  const createCollection = useCallback(
+    async (
+      _collectionToCreate: CollectionCreate,
+      _accessToken?: string,
+    ): Promise<Collection | undefined> => {
+      return undefined;
+    },
+    [],
+  );
 
   const updateCollection = useCallback(async () => {
     return undefined;

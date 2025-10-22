@@ -73,7 +73,7 @@ export function DocumentsTable({
               <TableCell className="font-medium">{doc.metadata.name}</TableCell>
               <TableCell>
                 <Badge variant="secondary">
-                  {getCollectionName(selectedCollection.name)}
+                  {getCollectionName(selectedCollection)}
                 </Badge>
               </TableCell>
               <TableCell>

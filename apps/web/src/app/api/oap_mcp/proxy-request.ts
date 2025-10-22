@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth/auth";
 
 const MCP_SERVER_URL = process.env.ARCADE_MCP_GATEWAY_URL;
 const MCP_AUTH_REQUIRED = process.env.NEXT_PUBLIC_MCP_AUTH_REQUIRED === "true";
 const ARCADE_API_KEY = process.env.ARCADE_API_KEY;
-const ARCADE_USER_ID = process.env.ARCADE_USER_ID;
+// Fallback user ID for development (will be replaced by session email in production)
+const ARCADE_USER_ID_FALLBACK = process.env.ARCADE_USER_ID;
 
 /**
  * Proxies requests from the client to the MCP server.
@@ -61,17 +63,22 @@ export async function proxyRequest(req: NextRequest): Promise<Response> {
       );
     }
 
-    if (!ARCADE_USER_ID) {
+    // Get user email from session, fallback to env var for development
+    const session = await auth();
+    const userEmail = session?.user?.email || ARCADE_USER_ID_FALLBACK;
+
+    if (!userEmail) {
       return new Response(
         JSON.stringify({
-          message: "ARCADE_USER_ID environment variable is not set.",
+          message:
+            "User email not found. Please log in or set ARCADE_USER_ID for development.",
         }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 401, headers: { "Content-Type": "application/json" } },
       );
     }
 
     headers.set("Authorization", `Bearer ${ARCADE_API_KEY}`);
-    headers.set("Arcade-User-ID", ARCADE_USER_ID);
+    headers.set("Arcade-User-ID", userEmail);
   }
 
   headers.set("Accept", "application/json, text/event-stream");
@@ -83,10 +90,6 @@ export async function proxyRequest(req: NextRequest): Promise<Response> {
     body = req.body;
   }
 
-  console.log("MCP Proxy: Forwarding request to", targetUrl);
-  console.log("MCP Proxy: Method:", req.method);
-  console.log("MCP Proxy: Headers:", Object.fromEntries(headers.entries()));
-
   try {
     // Make the proxied request
     const response = await fetch(targetUrl, {
@@ -94,8 +97,6 @@ export async function proxyRequest(req: NextRequest): Promise<Response> {
       headers,
       body,
     });
-    
-    console.log("MCP Proxy: Response status:", response.status);
     // Clone the response to create a new one we can modify
     const responseClone = response.clone();
 
@@ -105,7 +106,6 @@ export async function proxyRequest(req: NextRequest): Promise<Response> {
     try {
       // Try to parse as JSON first
       const responseData = await responseClone.json();
-      console.log("MCP Proxy: Response data:", JSON.stringify(responseData, null, 2));
       newResponse = NextResponse.json(responseData, {
         status: response.status,
         statusText: response.statusText,
@@ -113,7 +113,6 @@ export async function proxyRequest(req: NextRequest): Promise<Response> {
     } catch (_) {
       // If not JSON, use the raw response body
       const responseBody = await response.text();
-      console.log("MCP Proxy: Response body (text):", responseBody);
       newResponse = new NextResponse(responseBody, {
         status: response.status,
         statusText: response.statusText,

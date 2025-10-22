@@ -64,10 +64,7 @@ export default function useMCP({
   const getTools = async (nextCursor?: string): Promise<Tool[]> => {
     try {
       const mcp = await createAndConnectMCPClient();
-      console.log("MCP client connected successfully");
-      
       const tools = await mcp.listTools({ cursor: nextCursor });
-      console.log("MCP listTools response:", tools);
       
       if (tools.nextCursor) {
         setCursor(tools.nextCursor);

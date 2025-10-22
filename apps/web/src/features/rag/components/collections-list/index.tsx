@@ -63,7 +63,7 @@ export function CollectionsList({
             )}
             onClick={() => onSelect(collection.uuid)}
           >
-            <span>{getCollectionName(collection.name)}</span>
+            <span>{getCollectionName(collection)}</span>
             {collection.name !== DEFAULT_COLLECTION_NAME && (
               <CollectionActions
                 collection={collection}

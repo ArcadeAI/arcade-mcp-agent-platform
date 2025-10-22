@@ -14,8 +14,9 @@ export default function EmptyCollectionsState() {
     const loadingToast = toast.loading("Creating collection", {
       richColors: true,
     });
-    const newCollection = await createCollection(name, {
-      description,
+    const newCollection = await createCollection({
+      name,
+      metadata: { description },
     });
     toast.dismiss(loadingToast);
     if (newCollection) {

@@ -19,7 +19,6 @@ import {
 import { useAgents } from "@/hooks/use-agents";
 import { extractConfigurationsFromAgent } from "@/lib/ui-config";
 import { createClient } from "@/lib/client";
-import { toast } from "sonner";
 import { Assistant } from "@langchain/langgraph-sdk";
 
 async function getOrCreateDefaultAssistants(

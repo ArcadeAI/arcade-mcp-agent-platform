@@ -250,6 +250,8 @@ function ThreadsProviderInternal<
 
   const fetchSingleThread = React.useCallback(
     async (threadId: string): Promise<ThreadData<ThreadValues> | undefined> => {
+      if (!agentInboxId) return undefined;
+      
       const [_, deploymentId] = agentInboxId.split(":");
       const client = createClient(deploymentId);
 
@@ -326,7 +328,7 @@ function ThreadsProviderInternal<
     }
 
     const [_, deploymentId] = agentInboxId.split(":");
-    const client = createClient(deploymentId, session.accessToken);
+    const client = createClient(deploymentId);
 
     try {
       setLoading(true);
@@ -374,7 +376,7 @@ function ThreadsProviderInternal<
     }
 
     const [assistantId, deploymentId] = agentInboxId.split(":");
-    const client = createClient(deploymentId, session.accessToken);
+    const client = createClient(deploymentId);
 
     try {
       if (options?.stream) {

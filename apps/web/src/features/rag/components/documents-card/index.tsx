@@ -233,7 +233,7 @@ export function DocumentsCard({
       <CardHeader className="flex w-full items-center justify-between">
         <div className="flex flex-col gap-2">
           <CardTitle>
-            {getCollectionName(selectedCollection?.name)} Documents
+            {getCollectionName(selectedCollection)} Documents
           </CardTitle>
           <CardDescription>Manage documents in this collection</CardDescription>
         </div>

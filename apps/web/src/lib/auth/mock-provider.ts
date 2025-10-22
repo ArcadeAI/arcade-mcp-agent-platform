@@ -1,7 +1,6 @@
 import {
   AuthProvider,
   AuthCredentials,
-  AuthError,
   Session,
   User,
   AuthStateChangeCallback,

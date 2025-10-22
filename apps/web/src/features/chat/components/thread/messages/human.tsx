@@ -78,9 +78,7 @@ export function HumanMessage({
         config: {
           configurable: getAgentConfig(agentId),
         },
-        metadata: {
-          supabaseAccessToken: session?.accessToken,
-        },
+        metadata: {},
         streamSubgraphs: true,
         streamResumable: true,
       },

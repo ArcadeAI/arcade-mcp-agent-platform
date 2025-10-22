@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import React from "react";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { SidebarLayout } from "@/components/sidebar";
+import { SessionProvider as NextAuthSessionProvider } from "next-auth/react";
 import { SessionProvider } from "@/providers/Session";
 import { MCPProvider } from "@/providers/MCP";
 import { DOCS_LINK } from "@/constants";
@@ -51,11 +52,13 @@ export default function RootLayout({
           </div>
         )}
         <NuqsAdapter>
-          <SessionProvider>
-            <MCPProvider>
-              <SidebarLayout>{children}</SidebarLayout>
-            </MCPProvider>
-          </SessionProvider>
+          <NextAuthSessionProvider>
+            <SessionProvider>
+              <MCPProvider>
+                <SidebarLayout>{children}</SidebarLayout>
+              </MCPProvider>
+            </SessionProvider>
+          </NextAuthSessionProvider>
         </NuqsAdapter>
       </body>
     </html>

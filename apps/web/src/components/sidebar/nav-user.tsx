@@ -32,7 +32,7 @@ import { useConfigStore } from "@/features/chat/hooks/use-config-store";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { user: authUser, signOut, isAuthenticated } = useSessionContext();
+  const { user: authUser, signOut, signIn, isAuthenticated, availableProviders } = useSessionContext();
   const router = useRouter();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { resetStore } = useConfigStore();
@@ -59,7 +59,7 @@ export function NavUser() {
   const handleSignOut = async () => {
     try {
       setIsSigningOut(true);
-      const { error } = await signOut();
+      const { error} = await signOut();
 
       if (error) {
         console.error("Error signing out:", error);
@@ -73,6 +73,29 @@ export function NavUser() {
       toast.error("Error signing out", { richColors: true });
     } finally {
       setIsSigningOut(false);
+    }
+  };
+
+  const handleSignIn = async (providerId?: string) => {
+    try {
+      await signIn(providerId);
+    } catch (err) {
+      console.error("Error signing in:", err);
+      toast.error("Error signing in", { richColors: true });
+    }
+  };
+
+  // Get display name for provider
+  const getProviderDisplayName = (providerId: string) => {
+    switch (providerId) {
+      case 'okta':
+        return 'Okta';
+      case 'entra-id':
+        return 'Microsoft';
+      case 'ping':
+        return 'PingID';
+      default:
+        return providerId;
     }
   };
 
@@ -151,7 +174,7 @@ export function NavUser() {
               Settings
             </DropdownMenuItem>
 
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <DropdownMenuItem
                 onClick={handleSignOut}
                 disabled={isSigningOut}
@@ -168,6 +191,37 @@ export function NavUser() {
                   </>
                 )}
               </DropdownMenuItem>
+            ) : (
+              <>
+                {availableProviders.length === 0 && (
+                  <DropdownMenuItem disabled>
+                    <TriangleAlert className="mr-2 h-4 w-4 text-orange-500" />
+                    No auth provider configured
+                  </DropdownMenuItem>
+                )}
+                {availableProviders.length === 1 && (
+                  <DropdownMenuItem onClick={() => handleSignIn(availableProviders[0])}>
+                    <User className="mr-2 h-4 w-4" />
+                    Sign in with {getProviderDisplayName(availableProviders[0])}
+                  </DropdownMenuItem>
+                )}
+                {availableProviders.length > 1 && (
+                  <>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      Sign in with
+                    </DropdownMenuLabel>
+                    {availableProviders.map((providerId) => (
+                      <DropdownMenuItem
+                        key={providerId}
+                        onClick={() => handleSignIn(providerId)}
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        {getProviderDisplayName(providerId)}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+              </>
             )}
             {!isProdEnv && (
               <DropdownMenuItem onClick={handleClearLocalData}>
