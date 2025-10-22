@@ -14,7 +14,7 @@
 
 ## Overview
 
-This is a customized implementation of [LangChain's Open Agent Platform](https://github.com/langchain-ai/open-agent-platform) integrated with [Arcade.dev's MCP Gateway](https://arcade.dev) for secure, scalable tool access. The platform provides a modern web interface for creating, managing, and interacting with LangGraph agents that can access 100+ external tools through Arcade's production-grade MCP infrastructure.
+This is a customized implementation of [LangChain's Open Agent Platform](https://github.com/langchain-ai/open-agent-platform) integrated with [Arcade.dev's MCP Gateway](https://arcade.dev) for secure, scalable tool access. The platform provides a modern web interface for creating, managing, and interacting with LangGraph agents that can access 1000+ external tools through Arcade's production-grade MCP infrastructure.
 
 ### What Makes This Special
 
@@ -30,12 +30,12 @@ This is a customized implementation of [LangChain's Open Agent Platform](https:/
 ### ✨ Agent Management
 Build and configure LangGraph agents through an intuitive web interface. No code required for agent deployment and configuration.
 
-### 🔧 Arcade MCP Integration
+### 🔧 Arcade MCP Integration 
 Access Arcade's entire tool ecosystem:
 - **Productivity**: Gmail, Google Calendar, Outlook, Notion, Asana
 - **Developer Tools**: GitHub, Jira, Linear
 - **Communication**: Slack, Microsoft Teams, Discord
-- **And 100+ more...**
+- **And 1000+ more... Full list: [docs.arcade.dev/en/mcp-servers](https://docs.arcade.dev/en/mcp-servers)**
 
 ### 🔐 Secure Tool Authorization
 - **Custom Verifier Endpoint**: Validates user identity during OAuth flows
