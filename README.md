@@ -74,21 +74,21 @@ Access Arcade's entire tool ecosystem:
 └────────────────────────────┼─────────────────────────────────────────┘
                              │
                              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│              Next.js Backend (Server) + NextAuth                     │
-│                                                                      │
-│  ┌─────────────────────┐  ┌──────────────────┐  ┌────────────────┐   │
+┌─────────────────────────────────────────────────────────────────────┐
+│              Next.js Backend (Server) + NextAuth                    │
+│                                                                     │
+│  ┌─────────────────────┐  ┌──────────────────┐  ┌────────────────┐  │
 │  │ /api/auth/          │  │ Session Mgmt     │  │ /api/arcade/   │  │
 │  │ [..nextauth]        │  │ (JWT Cookies)    │  │ verify         │  │
 │  │                     │  │                  │  │                │  │
-│  │ • Okta OIDC        │  │ Gets user email  │  │ Custom         │  │
-│  │ • Entra ID OIDC    │  │ from session     │  │ Verifier       │  │
-│  │ • PingID OIDC      │  │                  │  │ (Phase 3)      │  │
+│  │ • Okta OIDC         │  │ Gets user email  │  │ Custom         │  │
+│  │ • Entra ID OIDC     │  │ from session     │  │ Verifier       │  │
+│  │ • PingID OIDC       │  │                  │  │ (Phase 3)      │  │
 │  └─────────────────────┘  └────────┬─────────┘  └────────┬───────┘  │
 │                                    │                     │          │
 │  ┌─────────────────────┐  ┌────────▼──────────┐          │          │
 │  │ /api/langgraph/     │  │ /api/oap_mcp      │◄─────────┘          │
-│  │ proxy/{id}          │  │                   │  (on OAuth redirect) │
+│  │ proxy/{id}          │  │                   │  (on OAuth redirect)│
 │  │                     │  │ Gets session:     │                     │
 │  │ Injects:            │  │ user.email        │                     │
 │  │ • LANGSMITH_API_KEY │  │                   │                     │
